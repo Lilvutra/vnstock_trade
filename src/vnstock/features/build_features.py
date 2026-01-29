@@ -98,6 +98,11 @@ if __name__ == '__main__':
     feats.to_csv(out_path, index=False)
     print(f"Wrote features to {out_path}")
 
+# how can we incoporate label generation into feature building?
+# we can import generate_labels function from label_generator/generate_label.py and call it within build_features function
+# however, it is better to keep feature building and label generation separate for modularity
+# users may want to use features without labels or vice versa
+# thus, we keep them as separate functions and let users call them as needed in their pipeline  
 
 
 
