@@ -40,7 +40,7 @@ The pipeline is designed with data flowing **unidirectionally** through the foll
 
 ```
 vnstock_trade/
-├── src/vnstock/
+├── src/vnstock_trade/
 │   ├── fetch/          # Data acquisition from VCI API
 │   ├── features/       # Technical indicator generation
 │   ├── labels/         # Target variable creation
@@ -48,7 +48,8 @@ vnstock_trade/
 │   ├── strategy/       # Trading strategy logic
 │   └── utils/          # Shared helper functions
 │
-├── scripts/
+├── scripts\
+|   ├── backtest.py
 │   └── run_pipeline.py # Pipeline orchestration
 │
 └── data/               # Generated datasets (CSV outputs)
