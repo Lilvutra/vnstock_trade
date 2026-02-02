@@ -1,6 +1,6 @@
 [project]
 
-name = "vnstock"
+name = "vnstock-trade"
 version = "0.1.0"
 
 [tool.setuptools]

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 
-# Relative Strength Index (RSI) calculation
+# Relative Strength Index (RSI) calculation for finding overbought or oversold conditions
 def _rsi(series: pd.Series, window: int = 14) -> pd.Series:
     delta = series.diff()
     up = delta.clip(lower=0)
