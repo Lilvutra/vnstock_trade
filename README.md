@@ -38,3 +38,19 @@ The pipeline is designed with data flowing **unidirectionally** through the foll
 
 ##  Package Structure 
 
+```
+vnstock_trade/
+├── src/vnstock/
+│   ├── fetch/          # Data acquisition from VCI API
+│   ├── features/       # Technical indicator generation
+│   ├── labels/         # Target variable creation
+│   ├── training/       # Model training (RandomForest)
+│   ├── strategy/       # Trading strategy logic
+│   └── utils/          # Shared helper functions
+│
+├── scripts/
+│   └── run_pipeline.py # Pipeline orchestration
+│
+└── data/               # Generated datasets (CSV outputs)
+
+```
