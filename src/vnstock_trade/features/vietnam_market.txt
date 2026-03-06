@@ -1,0 +1,244 @@
+
+> Vietnam has hard price limits (±7% HOSE, ±10% HNX).
+> Why does this matter for ML features?
+> And how can it create real alpha?
+
+---
+
+# 🇻🇳 1️⃣ What Hard Price Limits Do Structurally
+
+On HOSE:
+
+* Stock cannot move more than ±7% per day.
+
+This creates:
+
+* Artificial truncation of returns
+* Order book locking at ceiling/floor
+* Multi-day continuation patterns
+* Liquidity distortion
+
+This is not present in US markets.
+
+That’s why features exploiting this can be powerful.
+
+---
+
+# 🔥 2️⃣ Why Price Limits Create Predictable Behavior
+
+In a free market:
+
+If real fair value jumps +15%, price immediately adjusts.
+
+In Vietnam:
+
+If fair value jumps +15%:
+
+Day 1 → +7% (limit up)
+Day 2 → +7%
+Day 3 → +1%
+
+Price discovery is slowed.
+
+That creates **multi-day momentum spillover**.
+
+This is structural — not just statistical.
+
+---
+
+# 📈 3️⃣ Ceiling Lock Phenomenon
+
+When a stock:
+
+* Hits +7%
+* Has huge unmatched buy volume at ceiling
+* Zero sellers
+
+It becomes “locked”.
+
+Retail psychology kicks in:
+
+* FOMO
+* Social media hype
+* Herd behavior
+
+Often leads to:
+
+2–5 day continuation waves.
+
+Feature idea:
+
+```
+Consecutive_limit_up_days
+Unmatched_ceiling_volume_ratio
+```
+
+---
+
+# 📉 4️⃣ Floor Lock and Panic Cascades
+
+Same on downside:
+
+When stock hits -7% and locks:
+
+* No buyers
+* Huge sell queue
+
+This creates:
+
+Forced liquidation cascade
+Margin call spillover
+Liquidity vacuum
+
+Often continues next day.
+
+Feature idea:
+
+```
+Consecutive_floor_days
+Sell_queue_ratio
+```
+
+---
+
+# 🧠 5️⃣ Why ML Loves This
+
+Because limits create:
+
+Nonlinear regime behavior.
+
+Normal markets:
+
+Returns roughly continuous.
+
+Vietnam:
+
+Returns are censored.
+
+Distribution looks like:
+
+Big spikes at +7% and -7%.
+
+This changes statistical structure.
+
+Models that ignore this miss signal.
+
+---
+
+# 🎯 6️⃣ Hidden Dynamic: Supply–Demand Imbalance Memory
+
+When stock closes at ceiling:
+
+Unfilled demand carries to next day.
+
+There is pent-up pressure.
+
+Unlike normal markets where pressure clears instantly.
+
+That creates autocorrelation.
+
+This is not classic momentum.
+
+It is constrained price discovery.
+
+---
+
+# 📊 7️⃣ Feature Engineering Ideas Around Limits
+
+### 🔹 Limit Proximity Feature
+
+Distance to upper limit at close.
+
+If stock closes at +6.8%, strong probability of hitting +7% next day.
+
+---
+
+### 🔹 Ceiling Volume Imbalance
+
+Unmatched buy volume at ceiling / total volume.
+
+Large ratio → strong continuation.
+
+---
+
+### 🔹 Exhaustion Signal
+
+3–4 consecutive limit-ups + shrinking volume
+→ blow-off top risk.
+
+---
+
+### 🔹 Liquidity Drying Feature
+
+Volume collapses while price at limit
+→ fragility increases.
+
+---
+
+# 🧨 8️⃣ Why This Can Be “Killer” Alpha
+
+Because:
+
+Price limits distort equilibrium adjustment.
+
+This is mechanical inefficiency.
+
+Not just statistical noise.
+
+Emerging markets with limits:
+
+* China A-shares
+* Vietnam
+* Some frontier markets
+
+Often show similar continuation behavior.
+
+---
+
+# ⚠️ But Be Careful
+
+Limits also create:
+
+* Fake breakouts
+* Illiquid traps
+* Exit difficulty
+
+Backtests must include:
+
+* Realistic fill assumption
+* Slippage
+* Queue position logic
+
+Many strategies look great because they assume instant execution at ceiling.
+
+In reality:
+You may never get filled.
+
+---
+
+# 🔥 Why Developed Markets Don’t Have This Edge
+
+US markets rarely use daily hard limits on individual stocks.
+
+So:
+
+Price discovery faster
+Less multi-day artificial continuation
+
+Vietnam structure creates edge.
+
+---
+
+# 📌 If I Were Designing a Vietnam ML Strategy
+
+I would include:
+
+1. Limit-up streak count
+2. Ceiling queue imbalance
+3. Volume acceleration
+4. Sector co-momentum
+5. Market-wide turnover regime
+
+But with strict walk-forward testing.
+
+

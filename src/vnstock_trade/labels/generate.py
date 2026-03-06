@@ -43,11 +43,13 @@ def generate_labels(df: pd.DataFrame, hold_period: int = 5, quantiles: int = 5) 
    
     # Assign quantile-based labels
     df['label'] = pd.qcut(df['vol_adj_return'], q=quantiles, labels=False)
+    
     print(df)
     
+    # sanity check: do higher labels correspond to higher future returns?, we should see a monotonic increase in mean returns as label increases to verify labels are meaningful
     print(f"fr mean: {df.groupby('label')['vol_adj_return'].mean()}")
 
-    
+   
     #return df[['return_t+N', 'vol_adj_return', 'label']]
     return df
     # want to merge df with label with features_VNM

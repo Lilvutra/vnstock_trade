@@ -1,0 +1,48 @@
+Model evaluation results:
+                precision    recall  f1-score   support
+
+           0       0.72      0.96      0.82        80
+           1       0.68      0.55      0.61        66
+           2       0.80      0.65      0.71       108
+           3       0.59      0.47      0.52       119
+           4       0.27      0.40      0.32        63
+
+    accuracy                           0.61       436
+   macro avg       0.61      0.60      0.60       436
+weighted avg       0.63      0.61      0.61       436
+
+Confusion Matrix:
+[[77  3  0  0  0]
+ [30 36  0  0  0]
+ [ 0 14 70  1 23]
+ [ 0  0 18 56 45]
+ [ 0  0  0 38 25]]
+
+label 0: worst future returns
+label 4: best future returns
+
+
+ precision    recall  f1-score   support
+
+           0       0.72      0.96      0.82        80
+           1       0.68      0.55      0.61        66
+           2       0.80      0.65      0.71       108
+           3       0.59      0.47      0.52       119
+           4       0.27      0.40      0.32        63
+
+    accuracy                           0.61       436
+   macro avg       0.61      0.60      0.60       436
+weighted avg       0.63      0.61      0.61       436
+
+[[77  3  0  0  0]
+ [30 36  0  0  0]
+ [ 0 14 70  1 23]
+ [ 0  0 18 56 45]
+ [ 0  0  0 38 25]]
+Average returns by predicted label: predicted_label
+0   -0.530836
+1   -0.199456
+2    0.269085
+3    0.546614
+4    0.498714
+Name: return_t+N, dtype: float64

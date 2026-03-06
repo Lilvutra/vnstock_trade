@@ -6,7 +6,7 @@ from ..src.vnstock_trade.training.train_model import train
 def main():
     fetch_data()
     build_features()
-    generate_labels()
+    # generate_labels()
     train()
 
 if __name__ == "__main__":

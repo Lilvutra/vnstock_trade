@@ -2,6 +2,28 @@ import os
 import numpy as np
 import pandas as pd
 
+"""Feature engineering for stock data, including returns, moving averages, volatility, momentum, and technical indicators like RSI and MACD.
+Designed for multi-stock daily data with columns: time, open, high, low, close, volume, symbol. Outputs a DataFrame with new feature columns for modeling.
+
+Improvements:
+- Minimize features to reduce noise and overfitting, focus on most predictive ones
+- Add more technical indicators (e.g., Bollinger Bands, Stochastic Oscillator) for richer signals
+- Incorporate fundamental data (e.g., P/E ratio, earnings) for additional perspective beyond price action
+- Use feature selection techniques (e.g., mutual information, feature importance) to identify and keep only the most relevant features for the model
+- Consider dimensionality reduction (e.g., PCA) if feature space becomes too large, to capture most variance with fewer features
+
+Vietnam market focuses:
+Regime classifier (turnover + foreign flow)
+
+Cross-sectional momentum ranking
+
+Volume-adjusted breakout detection
+
+Futures basis as risk filter
+
+Strict walk-forward validation
+
+Keep model simple (e.g., LightGBM or logistic regression)."""
 
 # Relative Strength Index (RSI) calculation for finding overbought or oversold conditions
 def _rsi(series: pd.Series, window: int = 14) -> pd.Series:
@@ -39,13 +61,14 @@ def build_features(df: pd.DataFrame,
             g[f'return_{w}'] = g['close'].pct_change(w) # simple return over w days
             g[f'volatility_{w}'] = g['log_return_1'].rolling(w).std() # volatility (std dev of log returns) over w days
 
+        
         # Lagged returns
         for lag in range(1, 6):
             g[f'lag_logret_{lag}'] = g['log_return_1'].shift(lag)
-
+        
         # Momentum and volume features
         g['mom_5'] = g['close'] / g['close'].shift(5) - 1
-        g['vol_change'] = g['volume'].pct_change() # pct = percentage change
+        g['vol_change'] = g['volume'].pct_change() # percentage change
         g['vol_ma_5'] = g['volume'].rolling(5).mean()
 
         # RSI
@@ -87,6 +110,49 @@ def build_features(df: pd.DataFrame,
     return out
 
 
+def _build_features(df: pd.DataFrame,
+                   symbol_col: str = 'symbol',
+                   time_col: str = 'time',
+                   windows=(5, 10, 21),
+                   rsi_window: int = 14) -> pd.DataFrame:
+    """refined build_features with more refined features 
+    """
+    df = df.copy()
+    df[time_col] = pd.to_datetime(df[time_col])
+
+    def features(g_: pd.DataFrame) -> pd.DataFrame:
+        
+        g_ = g_.sort_values(time_col).copy()
+        
+        g_['return_1'] = g_['close'].pct_change() # simple daily return
+        g_['log_return_1'] = np.log(g_['close']).diff() # log daily return
+
+        # Lagged returns
+        for lag in range(1, 6):
+            g_[f'lag_logret_{lag}'] = g_['log_return_1'].shift(lag)
+
+        # Momentum and volume features
+        g_['mom_5'] = g_['close'] / g_['close'].shift(5) - 1
+        g_['vol_change'] = g_['volume'].pct_change() # percentage change
+        g_['vol_ma_5'] = g_['volume'].rolling(5).mean()
+
+        # RSI
+        g_[f'rsi_{rsi_window}'] = _rsi(g_['close'], window=rsi_window)
+        
+        # Limit Proximity Feature: Distance to upper limit at close.
+        # If stock closes at +6.8%, strong probability of hitting +7% next day with 7% limit, we can capture this by measuring how close the close price is to the upper limit, which is open price * 1.07 for HOSE stocks.
+        g_['limit_proximity'] = (g_['close'] - g_['open'] * 1.07) / (g_['open'] * 1.07)
+        
+        # volume-adjusted proximity 
+        g_['vol_adj_limit_proximity'] = g_['limit_proximity'] * g_['volume'] / g_['volume'].rolling(5).mean() # if close is near limit and volume is high relative to recent average, it may indicate strong momentum towards the limit, which could be predictive of hitting the limit next day
+         
+
+        return g_
+
+    out_ = df.groupby(symbol_col, group_keys=False).apply(features)
+    out_ = out_.reset_index(drop=True)
+    return out_
+
 if __name__ == '__main__':
     base = os.getcwd()
     sample = os.path.join(base, 'data', 'VNM_2022.csv')
@@ -94,7 +160,7 @@ if __name__ == '__main__':
         raise SystemExit(f"Sample CSV not found at {sample}")
     src_df = pd.read_csv(sample)
     feats = build_features(src_df)
-    out_path = os.path.join(base, 'data', 'features_VNM_2022.csv')
+    out_path = os.path.join(base, 'data', '_features_VNM_2022.csv')
     feats.to_csv(out_path, index=False)
     print(f"Wrote features to {out_path}")
 

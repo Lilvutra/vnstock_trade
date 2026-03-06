@@ -32,10 +32,10 @@ def train():
     # Do higher predicted labels actually lead to higher future returns?
     features_df = pd.read_csv(os.path.join('./data/features_VNM_2022.csv'))
     labels = generate_labels(features_df)
+    
     # doing a merge where both DataFrames contain columns with the same names, pandas auto-renames them to avoid overwriting
     # df = features_df.merge(labels, left_index=True, right_index=True)
     df = features_df.merge(labels)
-    print(f"df cols: {df.columns}")
     data = df.dropna() 
     
     print(f"columns: {data.columns}")
@@ -43,10 +43,12 @@ def train():
     feature_cols = ["return_1", "log_return_1", "ma_5", "return_5", "volatility_5", "lag_logret_1", "lag_logret_2", "lag_logret_3", "lag_logret_4", "lag_logret_5", "mom_5", "vol_change", "vol_ma_5", "rsi_14", "macd"]
 
     X = data[feature_cols]
+    print(f"X feature cols: {X.columns}")
     y = data['label']
 
     # Time-based split, 70% for training
     split = int(len(data) * 0.7)
+    print(f"Data split at index: {split}, total length: {len(data)}")
 
     X_train = X[:split]
     X_test = X[split:]
@@ -60,7 +62,14 @@ def train():
     y_pred = model.predict(X_test)
     print(classification_report(y_test, y_pred))
     print(confusion_matrix(y_test, y_pred))
-
+    
+    
+    # Do higher predicted labels actually lead to higher future returns?
+    test_results = data[split:].copy()
+    test_results['predicted_label'] = y_pred
+    print(f"Average returns by predicted label: {test_results.groupby('predicted_label')['return_t+N'].mean()}")
+    # Seeing Return by class is incomplete -> we also need volatility of those returns, stability across time
+    # bc High mean + huge volatility = unstable strategy, Financial ML is about: Maximizing signal-to-noise ratio, Not maximizing accuracy.
 
 if __name__ == "__main__":
     train()
