@@ -1,0 +1,8 @@
+.env
+.vscode/
+.idea/
+*.log
+vn_stock_market_consolidated copy.csv
+all_vn_stocks_ohlcv_2023_2024 copy.csv
+
+
