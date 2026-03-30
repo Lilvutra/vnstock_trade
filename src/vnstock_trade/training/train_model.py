@@ -2,6 +2,16 @@
 # How can we train test split the data?
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import log_loss
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from vnstock import *
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
 # where is df defined?
 # we can assume df is the DataFrame returned from feature building and label generation
 # e.g. df = build_features() merged with generate_labels()
@@ -22,15 +32,12 @@ print(sys.path)
 
 
 from vnstock_trade.labels.generate import generate_labels
-
-import pandas as pd
-import numpy as np 
 import os
 
 
 def train():
     # Do higher predicted labels actually lead to higher future returns?
-    features_df = pd.read_csv(os.path.join('./data/features_VNM_2022.csv'))
+    features_df = pd.read_csv(os.path.join('./data/VNM_2022.csv'))
     labels = generate_labels(features_df)
     
     # doing a merge where both DataFrames contain columns with the same names, pandas auto-renames them to avoid overwriting
@@ -56,23 +63,131 @@ def train():
     y_test = y[split:]
 
 
-    model = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
+    model = RandomForestClassifier(n_estimators=500, max_depth=5, min_samples_split=20,random_state=42)
     model.fit(X_train, y_train)
+    importances = model.feature_importances_
+    feature_importance_df = pd.DataFrame({'feature': feature_cols, 'importance': importances}).sort_values(by='importance', ascending=False)
 
     y_pred = model.predict(X_test)
     print(classification_report(y_test, y_pred))
     print(confusion_matrix(y_test, y_pred))
-    
-    
+    print("Feature Importances:")
+    print(feature_importance_df)
+
     # Do higher predicted labels actually lead to higher future returns?
     test_results = data[split:].copy()
     test_results['predicted_label'] = y_pred
     print(f"Average returns by predicted label: {test_results.groupby('predicted_label')['return_t+N'].mean()}")
     # Seeing Return by class is incomplete -> we also need volatility of those returns, stability across time
     # bc High mean + huge volatility = unstable strategy, Financial ML is about: Maximizing signal-to-noise ratio, Not maximizing accuracy.
+    # print results to see return_t+N to compare with real returns
+    base = os.getcwd()
+    out_path = os.path.join(base, 'data', 'test_results.csv')
+    test_results.to_csv(out_path, index=False)
+    print(f"Test Results output to {out_path}")
+    
+def compute_slope(window):
+    x = np.arange(len(window)) # time is evenly spaced, in this case we want to create x coordinates to pair with y values in window, then we can find best fit line
+    if len(x) < 2:
+        return 0  # Not enough points to compute slope
+    slope = np.polyfit(x, window, 1)[0]  # Get the slope (coefficient of x)
+    return slope
 
+def compute_ma(window):
+    return np.mean(window)
+
+
+
+def _train():
+    """_summary_: this computes 
+    
+    """
+    data = pd.read_csv(os.path.join('./data/market_data_2026.csv'))
+    print(data)
+    
+    df = data[['time', 'close']].dropna()
+    
+    df.reset_index(drop=True, inplace=True)
+    
+    prices = df['close'].values
+    print(prices)
+    
+    window = 5
+    
+    X = []
+    y = []
+    
+    # take window(number)(, i.e 5) recent prices starting at postition i
+    for i in range(len(prices) - window - 1):
+        w = prices[i:i+window]
+        print(f"w: {w}")
+        slope = compute_slope(w)
+        print(f"slope: {slope}")
+        ma = compute_ma(w)
+        
+        current_price = prices[i+window-1]
+        #Features 
+        X.append([slope, current_price - ma]) # distance from moving average as a feature, if price is above ma, it may indicate upward momentum, if below, downward momentum
+        #Label: whether price goes up or down the next day
+        next_price = prices[i+window]
+        y.append(1 if next_price > current_price else 0)
+        
+    X = np.array(X)
+    y = np.array(y)
+    print(f"X: {X[:20]}, y: {y[:20]}")  # Print first 5 samples for sanity check
+    
+    # results show that there is a lag between prices, for example, the distance from ma feature reacts to price changes with a delay, which is expected since it's based on past prices, this lag can make it challenging for the model to capture sudden price movements,
+    # which are common in stock markets, and may require more sophisticated features or models that can capture temporal dependencies better, such as LSTM or Transformer-based models.
+    # the lag is basically this: if the distance is positive before price decreasess, price already started to decrease but the feature still shows positive distance until the price crosses below the ma, which creates a lag in the feature's response to price changes, this is a common issue with technical indicators that are based on past prices, and it highlights the importance of feature engineering and selection in financial machine learning, as well as the potential need for models that can capture temporal dependencies more effectively.
+    # if the distance from ma is negative before price increases, prices already started to decrease, reflecting Vietnam market's tendency of overreacting to bad news and underreacting to good news, which creates a lag in the feature's response to price changes, this is a common issue with technical indicators that are based on past prices, and it highlights the importance of feature engineering and selection in financial machine learning, as well as the potential need for models that can capture temporal dependencies more effectively.
+    # how can  
+    
+    split = int(len(X) * 0.7)
+    X_train, X_test = X[:split], X[split:]
+    y_train, y_test = y[:split], y[split:]
+    
+    model = LogisticRegression()
+    
+    train_losses = []
+    val_losses = []
+    
+    
+        
+    model.fit(X_train, y_train)
+        
+    train_probs = model.predict_proba(X_train)
+    val_probs = model.predict_proba(X_test)
+        
+    train_loss = log_loss(y_train, train_probs)
+    val_loss = log_loss(y_test, val_probs)
+    
+    print("Train loss:", train_loss)
+    print("Validation loss:", val_loss)
+     
+    y_pred = model.predict(X_test)
+        
+    plt.figure()
+    plt.plot(train_losses, label="Train Loss")
+    plt.plot(val_losses, label="Validation Loss")
+
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Loss Curve")
+    plt.legend()
+
+    plt.show()
+    # plot loss curve
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    
+    print(classification_report(y_test, y_pred))
+    print(confusion_matrix(y_test, y_pred))
+     
+    
+    
 if __name__ == "__main__":
-    train()
+    #train()
+    _train()
 
 
 

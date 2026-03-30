@@ -23,7 +23,7 @@ def generate_labels(df: pd.DataFrame, hold_period: int = 5, quantiles: int = 5) 
     - DataFrame with additional 'return_t+N' and 'label' columns.
     """
     df = df.copy()
-   
+  
     # Calculate t+N returns
     # why df['close'] not df[return]? because we need price at time t and t+N to calculate return, df['return'] is calculated from past prices(backwards looking)
     df['return_t+N'] = df['close'].shift(-hold_period) / df['close'] - 1

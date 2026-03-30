@@ -26,13 +26,18 @@ Strict walk-forward validation
 Keep model simple (e.g., LightGBM or logistic regression)."""
 
 # Relative Strength Index (RSI) calculation for finding overbought or oversold conditions
+# Even without volume, price reflects aggregate market behavior:
+# If price keeps going up → more aggressive buyers than sellers
+# If price keeps going down → selling pressure dominates
+# RSI only uses price changes, not actual traded volume, so it approximates buying/selling pressure indirectly. 
+# This is a limitation because price alone may not capture conviction. I would consider incorporating volume-based features to improve the signal
 def _rsi(series: pd.Series, window: int = 14) -> pd.Series:
-    delta = series.diff()
-    up = delta.clip(lower=0)
-    down = -delta.clip(upper=0)
-    ma_up = up.rolling(window=window, min_periods=window).mean()
-    ma_down = down.rolling(window=window, min_periods=window).mean()
-    rs = ma_up / ma_down
+    delta = series.diff() # price change from previous day, positive for gains, negative for losses
+    up = delta.clip(lower=0) # only keep gains, set losses to 0
+    down = -delta.clip(upper=0) # only keep losses as positive values, set gains to 0
+    ma_up = up.rolling(window=window, min_periods=window).mean() # average gain over the window
+    ma_down = down.rolling(window=window, min_periods=window).mean() # average loss over the window
+    rs = ma_up / ma_down # relative strength, ratio of average gain to average loss
     return 100 - 100 / (1 + rs)
 
 def build_features(df: pd.DataFrame,
@@ -57,7 +62,7 @@ def build_features(df: pd.DataFrame,
         g['log_return_1'] = np.log(g['close']).diff() # log daily return
 
         for w in windows:
-            g[f'ma_{w}'] = g['close'].rolling(w).mean() # moving average over w days
+            g[f'ma_{w}'] = g['close'].rolling(w).mean() # moving average over w days, 
             g[f'return_{w}'] = g['close'].pct_change(w) # simple return over w days
             g[f'volatility_{w}'] = g['log_return_1'].rolling(w).std() # volatility (std dev of log returns) over w days
 
@@ -71,7 +76,7 @@ def build_features(df: pd.DataFrame,
         g['vol_change'] = g['volume'].pct_change() # percentage change
         g['vol_ma_5'] = g['volume'].rolling(5).mean()
 
-        # RSI
+        # RSI - Relative Strength Index, a momentum oscillator that measures the speed and change of price movements, typically used to identify overbought or oversold conditions in a stock, calculated using average gains and losses over a specified period (commonly 14 days), with values ranging from 0 to 100 where above 70 indicates overbought and below 30 indicates oversold conditions
         g[f'rsi_{rsi_window}'] = _rsi(g['close'], window=rsi_window)
 
         # MACD
@@ -88,7 +93,7 @@ def build_features(df: pd.DataFrame,
         # EMA stands for Exponential Moving Average, a popular technical indicator that smooths price data to identify trends by giving more weight to recent prices, 
         # making it faster to react than a Simple Moving Average (SMA) and useful for spotting entry/exit points, support/resistance, and overall market direction in stocks, forex, and commodities
         # EMA: smoother than price, faster than SMA, captures momentum
-        
+       
         ema12 = g['close'].ewm(span=12, adjust=False).mean()
         ema26 = g['close'].ewm(span=26, adjust=False).mean()
         
@@ -115,7 +120,8 @@ def _build_features(df: pd.DataFrame,
                    time_col: str = 'time',
                    windows=(5, 10, 21),
                    rsi_window: int = 14) -> pd.DataFrame:
-    """refined build_features with more refined features 
+    
+    """refined build_features func with more refined features based on Vietnam Market 
     """
     df = df.copy()
     df[time_col] = pd.to_datetime(df[time_col])
@@ -146,7 +152,7 @@ def _build_features(df: pd.DataFrame,
         # volume-adjusted proximity 
         g_['vol_adj_limit_proximity'] = g_['limit_proximity'] * g_['volume'] / g_['volume'].rolling(5).mean() # if close is near limit and volume is high relative to recent average, it may indicate strong momentum towards the limit, which could be predictive of hitting the limit next day
          
-
+    
         return g_
 
     out_ = df.groupby(symbol_col, group_keys=False).apply(features)
@@ -160,7 +166,7 @@ if __name__ == '__main__':
         raise SystemExit(f"Sample CSV not found at {sample}")
     src_df = pd.read_csv(sample)
     feats = build_features(src_df)
-    out_path = os.path.join(base, 'data', '_features_VNM_2022.csv')
+    out_path = os.path.join(base, 'data', '_features_VNM_2026.csv')
     feats.to_csv(out_path, index=False)
     print(f"Wrote features to {out_path}")
 
