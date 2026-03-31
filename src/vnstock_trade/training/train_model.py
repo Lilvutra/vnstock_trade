@@ -102,7 +102,7 @@ def _train():
     """_summary_: this computes 
     
     """
-    data = pd.read_csv(os.path.join('./data/market_data_2026.csv'))
+    data = pd.read_csv(os.path.join('./data/test_results.csv')) #features_VNM_2022
     print(data)
     
     df = data[['time', 'close']].dropna()
@@ -118,6 +118,7 @@ def _train():
     y = []
     
     # take window(number)(, i.e 5) recent prices starting at postition i
+    """
     for i in range(len(prices) - window - 1):
         w = prices[i:i+window]
         print(f"w: {w}")
@@ -131,8 +132,21 @@ def _train():
         #Label: whether price goes up or down the next day
         next_price = prices[i+window]
         y.append(1 if next_price > current_price else 0)
-        
+    """
+    for i in range(len(prices) - window - 6):
+        w = prices[i:i+window]
+        z = (w[-1] - np.mean(w)) / np.std(w)
+        dist = (w[-1] - np.mean(w)) / np.mean(w)
+        momentum = w[-1] - w[-2]
+        vol = np.std(w)
+
+        X.append([z, dist, momentum, vol])
+        # redefine label
+        future_return = (prices[i+3] - prices[i]) / prices[i]
+        y.append(1 if future_return > 0 else 0)
+    
     X = np.array(X)
+    print("len X:", len(X))
     y = np.array(y)
     print(f"X: {X[:20]}, y: {y[:20]}")  # Print first 5 samples for sanity check
     
@@ -146,15 +160,10 @@ def _train():
     X_train, X_test = X[:split], X[split:]
     y_train, y_test = y[:split], y[split:]
     
-    model = LogisticRegression()
+    model = LogisticRegression()    
     
-    train_losses = []
-    val_losses = []
-    
-    
-        
     model.fit(X_train, y_train)
-        
+    
     train_probs = model.predict_proba(X_train)
     val_probs = model.predict_proba(X_test)
         
@@ -165,26 +174,72 @@ def _train():
     print("Validation loss:", val_loss)
      
     y_pred = model.predict(X_test)
-        
-    plt.figure()
-    plt.plot(train_losses, label="Train Loss")
-    plt.plot(val_losses, label="Validation Loss")
-
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.title("Loss Curve")
-    plt.legend()
-
-    plt.show()
-    # plot loss curve
     print("Accuracy:", accuracy_score(y_test, y_pred))
     
     
     print(classification_report(y_test, y_pred))
     print(confusion_matrix(y_test, y_pred))
      
+    # Random prediction
+    random_preds = np.random.randint(0, 2, size=len(y_test))
+    print("Random accuracy:", accuracy_score(y_test, random_preds))
+   
+    y_shuffled = y.copy()
+    np.random.shuffle(y_shuffled)
+
+    model.fit(X_train, y_shuffled[:split])
+    y_pred_fake = model.predict(X_test)
+
+    print("Accuracy with shuffled labels:", accuracy_score(y_test, y_pred_fake))
     
     
+    # Walk-forward accuracy
+    accuracies = []
+    
+    print("len x: ", len(X))
+
+    for i in range(50, len(X)-1):
+    
+        X_train = X[:i]
+        y_train = y[:i]
+    
+        X_test = X[i:i+1]
+        y_test = y[i:i+1]
+    
+        model.fit(X_train, y_train)
+        pred = model.predict(X_test)
+        
+    
+        accuracies.append(int(pred[0] == y_test[0]))
+
+    #print(f"accuracies: {accuracies}")
+
+    print("Walk-forward accuracy:", np.mean(accuracies))
+    
+    # Backtest
+    capital = 1.0
+
+    for i in range(split, len(X)-1):
+    
+        X_train = X[:i]
+        y_train = y[:i]
+    
+        model.fit(X_train, y_train)
+    
+        prob = model.predict_proba([X[i]])[0][1]
+    
+        if prob > 0.6:
+            ret = (prices[i+1] - prices[i]) / prices[i]
+            capital *= (1 + ret)
+
+    print("Final capital:", capital)
+    
+    # model features mix trend signal(slope) and reversal signal(distance) -> conflicting signals
+    # market behaves more like mean-reversion than trend-following   
+    # class imbalance too
+    # Feature	             Meaning
+    # very high (above MA)	 overbought → likely go DOWN
+    # very low (below MA)	 oversold → likely go UP
 if __name__ == "__main__":
     #train()
     _train()
