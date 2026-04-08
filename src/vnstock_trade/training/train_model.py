@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from vnstock import *
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 # where is df defined?
@@ -37,7 +38,7 @@ import os
 
 def train():
     # Do higher predicted labels actually lead to higher future returns?
-    features_df = pd.read_csv(os.path.join('./data/VNM_2022.csv'))
+    features_df = pd.read_csv(os.path.join('./data/vn_stock_market_consolidated.csv'))
     labels = generate_labels(features_df)
     
     # doing a merge where both DataFrames contain columns with the same names, pandas auto-renames them to avoid overwriting
@@ -99,13 +100,15 @@ def compute_ma(window):
 
 
 def _train():
-    """_summary_: this computes 
+    """_summary_: this computes features and labels based on close price, 
+    which is a simplified version of the more comprehensive features and labels we have in build_features.py and generate_label.py, 
+    this is just for testing the training pipeline, we can replace the features and labels with the ones from those files later, but for now, 
     
     """
-    data = pd.read_csv(os.path.join('./data/test_results.csv')) #features_VNM_2022
+    data = pd.read_csv(os.path.join('./data/market_data_2026_.csv')) #features_VNM_2022
     print(data)
-    
     df = data[['time', 'close']].dropna()
+    
     
     df.reset_index(drop=True, inplace=True)
     
@@ -133,19 +136,27 @@ def _train():
         next_price = prices[i+window]
         y.append(1 if next_price > current_price else 0)
     """
-    for i in range(len(prices) - window - 6):
+    eps = 1e-8
+    
+    for i in range(len(prices) - window - 6): #6 can be changed depending on label future_return
         w = prices[i:i+window]
-        z = (w[-1] - np.mean(w)) / np.std(w)
-        dist = (w[-1] - np.mean(w)) / np.mean(w)
+        mean = np.mean(w)
+        print(f"w: {w}, mean: {mean}")
+        std = np.std(w)
+        print(f"std: {std}")
+        z = (w[-1] - np.mean(w)) / (std + eps)
+        dist = (w[-1] - mean) / (mean + eps)
         momentum = w[-1] - w[-2]
-        vol = np.std(w)
+        vol = std / (mean + eps)
 
         X.append([z, dist, momentum, vol])
         # redefine label
-        future_return = (prices[i+3] - prices[i]) / prices[i]
+        future_return = (prices[i+5] - prices[i]) / prices[i]
         y.append(1 if future_return > 0 else 0)
     
     X = np.array(X)
+    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
     print("len X:", len(X))
     y = np.array(y)
     print(f"X: {X[:20]}, y: {y[:20]}")  # Print first 5 samples for sanity check
@@ -155,13 +166,15 @@ def _train():
     # the lag is basically this: if the distance is positive before price decreasess, price already started to decrease but the feature still shows positive distance until the price crosses below the ma, which creates a lag in the feature's response to price changes, this is a common issue with technical indicators that are based on past prices, and it highlights the importance of feature engineering and selection in financial machine learning, as well as the potential need for models that can capture temporal dependencies more effectively.
     # if the distance from ma is negative before price increases, prices already started to decrease, reflecting Vietnam market's tendency of overreacting to bad news and underreacting to good news, which creates a lag in the feature's response to price changes, this is a common issue with technical indicators that are based on past prices, and it highlights the importance of feature engineering and selection in financial machine learning, as well as the potential need for models that can capture temporal dependencies more effectively.
     # how can  
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+    split0 = int(len(X) * 0.6)
+    split1 = int(len(X) * 0.8)
+    X_train, X_test = X[:split0], X[split1:]
+    y_train, y_test = y[:split0], y[split1:]
     
-    split = int(len(X) * 0.7)
-    X_train, X_test = X[:split], X[split:]
-    y_train, y_test = y[:split], y[split:]
-    
-    model = LogisticRegression()    
-    
+    model = LogisticRegression(max_iter=1000)    
+   
     model.fit(X_train, y_train)
     
     train_probs = model.predict_proba(X_train)
@@ -187,7 +200,7 @@ def _train():
     y_shuffled = y.copy()
     np.random.shuffle(y_shuffled)
 
-    model.fit(X_train, y_shuffled[:split])
+    model.fit(X_train, y_shuffled[:split0])
     y_pred_fake = model.predict(X_test)
 
     print("Accuracy with shuffled labels:", accuracy_score(y_test, y_pred_fake))
@@ -219,7 +232,7 @@ def _train():
     # Backtest
     capital = 1.0
 
-    for i in range(split, len(X)-1):
+    for i in range(split0, len(X)-1):
     
         X_train = X[:i]
         y_train = y[:i]

@@ -38,15 +38,15 @@ def fetch_data_v2():
         quote = Quote(
             symbol=sym, source='VCI')
         df = quote.history(
-            start="2026-03-09",
+            start="2026-01-01",
             end="2026-03-14",
             interval="d"
         )
         df['symbol'] = sym
         dfs.append(df)
- 
+
     market_df = pd.concat(dfs, ignore_index=True).sort_values(by=['time', 'symbol'])
-    market_df.to_csv('data/market_data_2026.csv', index=False)
+    market_df.to_csv('data/market_data_2026_.csv', index=False)
     
 def _fetch_data():
     """
